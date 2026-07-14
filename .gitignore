@@ -1,0 +1,57 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.lock
+
+# Xcode
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Runner.xcworkspace/
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.moved-to-trash
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Android
+android/.gradle/
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+android/**/GeneratedPluginRegistrant.java
+android/**/gradle-wrapper.jar
+*.jks
+
+# macOS
+macos/Flutter/GeneratedPluginRegistrant.swift
+macos/Flutter/Flutter-Debug.xcconfig
+macos/Flutter/Flutter-Release.xcconfig
+
+# VS Code
+.vscode/
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+
+# Coverage
+coverage/
+
+# Others
+.DS_Store
+*.log
+
+# API Keys — never commit real keys
+lib/core/constants/api_keys.dart
