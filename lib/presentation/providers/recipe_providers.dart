@@ -1,8 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/recipe.dart';
 import '../../data/models/meal_db_models.dart';
+import '../../data/models/cocktail_models.dart';
+import '../../data/models/food_product_model.dart';
 import '../../data/services/spoonacular_service.dart';
 import '../../data/services/meal_db_service.dart';
+import '../../data/services/cocktail_service.dart';
+import '../../data/services/open_food_service.dart';
 import '../../data/repositories/favorites_repository.dart';
 
 // ── Services ──────────────────────────────────────────────
@@ -14,6 +18,18 @@ final spoonacularServiceProvider = Provider<SpoonacularService>((ref) {
 
 final mealDbServiceProvider = Provider<MealDbService>((ref) {
   final s = MealDbService();
+  ref.onDispose(s.dispose);
+  return s;
+});
+
+final cocktailServiceProvider = Provider<CocktailService>((ref) {
+  final s = CocktailService();
+  ref.onDispose(s.dispose);
+  return s;
+});
+
+final openFoodServiceProvider = Provider<OpenFoodService>((ref) {
+  final s = OpenFoodService();
   ref.onDispose(s.dispose);
   return s;
 });
@@ -182,3 +198,41 @@ final favoritesProvider =
 
 // ── Theme ─────────────────────────────────────────────────
 final isDarkModeProvider = StateProvider<bool>((ref) => false);
+
+// ── Cocktails (TheCocktailDB — FREE) ──────────────────────
+final randomCocktailProvider = FutureProvider<Cocktail?>((ref) async {
+  return ref.watch(cocktailServiceProvider).getRandomCocktail();
+});
+
+final cocktailCategoriesProvider = FutureProvider<List<CocktailCategory>>((ref) async {
+  return ref.watch(cocktailServiceProvider).getCategories();
+});
+
+final selectedCocktailCategoryProvider = StateProvider<String?>((ref) => null);
+
+final cocktailsByCategoryProvider = FutureProvider<List<Cocktail>>((ref) async {
+  final cat = ref.watch(selectedCocktailCategoryProvider);
+  if (cat == null) return [];
+  return ref.watch(cocktailServiceProvider).filterByCategory(cat);
+});
+
+final cocktailDetailProvider = FutureProvider.family<CocktailDetail?, String>((ref, id) async {
+  return ref.watch(cocktailServiceProvider).getCocktailById(id);
+});
+
+final cocktailSearchQueryProvider = StateProvider<String>((ref) => '');
+
+final cocktailSearchResultsProvider = FutureProvider<List<Cocktail>>((ref) async {
+  final q = ref.watch(cocktailSearchQueryProvider);
+  if (q.isEmpty) return [];
+  return ref.watch(cocktailServiceProvider).searchCocktails(q);
+});
+
+// ── Open Food Facts (nutrition lookup — FREE) ─────────────
+final foodSearchQueryProvider = StateProvider<String>((ref) => '');
+
+final foodProductsProvider = FutureProvider<List<FoodProduct>>((ref) async {
+  final q = ref.watch(foodSearchQueryProvider);
+  if (q.isEmpty) return [];
+  return ref.watch(openFoodServiceProvider).searchProducts(q);
+});
