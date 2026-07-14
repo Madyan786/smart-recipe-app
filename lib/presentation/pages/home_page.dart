@@ -4,12 +4,15 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/area_flags.dart';
 import '../../data/models/meal_db_models.dart';
 import '../providers/recipe_providers.dart';
 import '../widgets/recipe_card.dart';
 import 'recipe_detail_page.dart';
 import 'meal_detail_page.dart';
 import 'category_page.dart';
+import 'meal_planner_page.dart';
+import 'desi_kitchen_page.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -29,6 +32,8 @@ class HomePage extends ConsumerWidget {
             _appBar(context, ref, isDark),
             _header(context),
             _featuredHero(context, ref),
+            _quickActions(context),
+            _cookingTip(context, ref),
             _categoriesSection(context, ref),
             _trendingHeader(context, ref),
             _trendingGrid(ref),
@@ -129,6 +134,186 @@ class HomePage extends ConsumerWidget {
         height: 200,
         decoration:
             BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(24)),
+      ),
+    );
+  }
+
+  // ── Quick actions row ─────────────────────────────────────
+  Widget _quickActions(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                _QuickActionBtn(
+                  icon: Icons.calendar_month_rounded,
+                  label: 'Meal Plan',
+                  color: AppColors.primary,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MealPlannerPage()),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _QuickActionBtn(
+                  icon: Icons.local_fire_department_rounded,
+                  label: 'Popular',
+                  color: AppColors.secondary,
+                  onTap: () {},
+                ),
+                const SizedBox(width: 10),
+                _QuickActionBtn(
+                  icon: Icons.emoji_food_beverage_rounded,
+                  label: 'Healthy',
+                  color: const Color(0xFF52B788),
+                  onTap: () {},
+                ),
+                const SizedBox(width: 10),
+                _QuickActionBtn(
+                  icon: Icons.timer_rounded,
+                  label: 'Quick',
+                  color: const Color(0xFFFF6B35),
+                  onTap: () {},
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Desi Halal Kitchen banner
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DesiKitchenPage()),
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1B4332), Color(0xFF2D6A4F), Color(0xFFFF6B35)],
+                    stops: [0.0, 0.55, 1.0],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withAlpha(60),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Text('🌙', style: TextStyle(fontSize: 26)),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Desi Halal Kitchen',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            'Biryani • Karahi • Kebab • Halal Certified',
+                            style: TextStyle(
+                                color: Colors.white70, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded,
+                        color: Colors.white70, size: 16),
+                  ],
+                ),
+              ).animate().fadeIn(duration: 500.ms, delay: 200.ms).slideX(begin: 0.1),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Cooking tip (Adviceslip API — FREE) ──────────────────
+  Widget _cookingTip(BuildContext context, WidgetRef ref) {
+    final tipAsync = ref.watch(cookingTipProvider);
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        child: tipAsync.when(
+          data: (tip) => Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2D6A4F), Color(0xFF52B788)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withAlpha(50),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(30),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text('💡', style: TextStyle(fontSize: 22)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Chef\'s Tip',
+                        style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        tip,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            height: 1.4),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded,
+                      color: Colors.white70, size: 20),
+                  onPressed: () => ref.invalidate(cookingTipProvider),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ).animate().fadeIn(duration: 500.ms).slideX(begin: -0.1),
+          loading: () => const SizedBox.shrink(),
+          error: (_, _) => const SizedBox.shrink(),
+        ),
       ),
     );
   }
@@ -388,7 +573,8 @@ class _HeroCard extends StatelessWidget {
                           const SizedBox(width: 10),
                         ],
                         if (meal.area.isNotEmpty) ...[
-                          const Icon(Icons.place_outlined, color: Colors.white70, size: 13),
+                          Text(flagForArea(meal.area),
+                              style: const TextStyle(fontSize: 13)),
                           const SizedBox(width: 4),
                           Text(meal.area,
                               style: const TextStyle(color: Colors.white70, fontSize: 12)),
@@ -403,6 +589,48 @@ class _HeroCard extends StatelessWidget {
         ),
       ),
     ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.1);
+  }
+}
+
+// ── Quick Action Button ───────────────────────────────────────
+class _QuickActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickActionBtn(
+      {required this.icon,
+      required this.label,
+      required this.color,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: color.withAlpha(18),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withAlpha(50)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 4),
+              Text(label,
+                  style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
