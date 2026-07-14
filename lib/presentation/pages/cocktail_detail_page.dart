@@ -217,7 +217,7 @@ class _CocktailDetailPageState extends ConsumerState<CocktailDetailPage>
                   controller: _tabCtrl,
                   children: [
                     _ingredientsTab(context, detail.fullIngredients),
-                    _instructionsTab(context, detail.instructions),
+                    _instructionsTab(context, detail.instructions, detail.youtubeUrl),
                   ],
                 ),
               ),
@@ -366,7 +366,7 @@ class _CocktailDetailPageState extends ConsumerState<CocktailDetailPage>
     );
   }
 
-  Widget _instructionsTab(BuildContext context, String? instructions) {
+  Widget _instructionsTab(BuildContext context, String? instructions, String? youtubeUrl) {
     if (instructions == null || instructions.isEmpty) {
       return const Center(child: Text('No instructions available'));
     }
@@ -407,16 +407,13 @@ class _CocktailDetailPageState extends ConsumerState<CocktailDetailPage>
               ],
             ),
           ),
-        if (ref.watch(cocktailDetailProvider(widget.id)).value?.youtubeUrl?.isNotEmpty == true)
+        if (youtubeUrl != null && youtubeUrl.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: GestureDetector(
               onTap: () async {
-                final url = ref.read(cocktailDetailProvider(widget.id)).value?.youtubeUrl;
-                if (url != null && url.isNotEmpty) {
-                  final uri = Uri.parse(url);
-                  if (await canLaunchUrl(uri)) launchUrl(uri);
-                }
+                final uri = Uri.parse(youtubeUrl);
+                if (await canLaunchUrl(uri)) launchUrl(uri);
               },
               child: Container(
                 padding: const EdgeInsets.all(16),

@@ -17,7 +17,6 @@ class DrinksPage extends ConsumerStatefulWidget {
 
 class _DrinksPageState extends ConsumerState<DrinksPage> {
   final _searchCtrl = TextEditingController();
-  bool _showMocktail = false;
 
   @override
   void dispose() {
@@ -27,8 +26,18 @@ class _DrinksPageState extends ConsumerState<DrinksPage> {
 
   @override
   Widget build(BuildContext context) {
+    // All ref.watch calls at the top — never inside helper methods
     final isDark = ref.watch(isDarkModeProvider);
     final selectedCat = ref.watch(selectedCocktailCategoryProvider);
+    final searchQuery = ref.watch(cocktailSearchQueryProvider);
+    final randomAsync = ref.watch(randomCocktailProvider);
+    final categoriesAsync = ref.watch(cocktailCategoriesProvider);
+    final searchAsync = searchQuery.isNotEmpty
+        ? ref.watch(cocktailSearchResultsProvider)
+        : const AsyncValue<List<Cocktail>>.data([]);
+    final categoryDrinksAsync = selectedCat != null
+        ? ref.watch(cocktailsByCategoryProvider)
+        : const AsyncValue<List<Cocktail>>.data([]);
 
     return Scaffold(
       body: RefreshIndicator(
@@ -40,12 +49,16 @@ class _DrinksPageState extends ConsumerState<DrinksPage> {
         child: CustomScrollView(
           slivers: [
             _appBar(context, isDark),
-            _searchBar(context),
-            _searchResults(context),
-            if (ref.watch(cocktailSearchQueryProvider).isEmpty) ...[
-              _featuredDrink(context),
-              _filterRow(context),
-              if (selectedCat == null) _categoriesGrid(context) else _categoryDrinks(context),
+            _searchBar(context, searchQuery),
+            if (searchQuery.isNotEmpty)
+              _searchResults(context, searchAsync)
+            else ...[
+              _featuredHero(context, randomAsync),
+              _filterRowHeader(context, selectedCat),
+              if (selectedCat == null)
+                _categoriesGrid(context, categoriesAsync)
+              else
+                _categoryDrinks(context, categoryDrinksAsync),
             ],
             const SliverToBoxAdapter(child: SizedBox(height: 30)),
           ],
@@ -54,6 +67,7 @@ class _DrinksPageState extends ConsumerState<DrinksPage> {
     );
   }
 
+  // ── App bar ───────────────────────────────────────────────
   SliverAppBar _appBar(BuildContext context, bool isDark) {
     return SliverAppBar(
       floating: true,
@@ -82,31 +96,22 @@ class _DrinksPageState extends ConsumerState<DrinksPage> {
                   ?.copyWith(color: const Color(0xFFE63946))),
         ],
       ),
-      actions: [
-        IconButton(
-          tooltip: _showMocktail ? 'Show All' : 'Mocktails Only',
-          icon: Icon(
-            _showMocktail ? Icons.no_drinks_outlined : Icons.emoji_food_beverage_outlined,
-            color: _showMocktail ? const Color(0xFFE63946) : null,
-          ),
-          onPressed: () => setState(() => _showMocktail = !_showMocktail),
-        ),
-        const SizedBox(width: 6),
-      ],
     );
   }
 
-  Widget _searchBar(BuildContext context) {
+  // ── Search bar ────────────────────────────────────────────
+  Widget _searchBar(BuildContext context, String currentQuery) {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
         child: TextField(
           controller: _searchCtrl,
-          onChanged: (v) => ref.read(cocktailSearchQueryProvider.notifier).state = v,
+          onChanged: (v) =>
+              ref.read(cocktailSearchQueryProvider.notifier).state = v,
           decoration: InputDecoration(
             hintText: 'Search cocktails, mocktails...',
             prefixIcon: const Icon(Icons.search_rounded),
-            suffixIcon: _searchCtrl.text.isNotEmpty
+            suffixIcon: currentQuery.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.clear_rounded),
                     onPressed: () {
@@ -121,17 +126,16 @@ class _DrinksPageState extends ConsumerState<DrinksPage> {
             ),
             filled: true,
             fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
       ),
     );
   }
 
-  Widget _searchResults(BuildContext context) {
-    final query = ref.watch(cocktailSearchQueryProvider);
-    if (query.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
-    final resultsAsync = ref.watch(cocktailSearchResultsProvider);
+  // ── Search results ────────────────────────────────────────
+  Widget _searchResults(BuildContext context, AsyncValue<List<Cocktail>> resultsAsync) {
     return resultsAsync.when(
       data: (drinks) => drinks.isEmpty
           ? SliverToBoxAdapter(
@@ -139,9 +143,10 @@ class _DrinksPageState extends ConsumerState<DrinksPage> {
                 padding: const EdgeInsets.all(40),
                 child: Column(
                   children: [
-                    const Icon(Icons.search_off_rounded, size: 60, color: AppColors.textSecondary),
+                    const Icon(Icons.search_off_rounded,
+                        size: 60, color: AppColors.textSecondary),
                     const SizedBox(height: 12),
-                    Text('No drinks found for "$query"',
+                    Text('No drinks found',
                         style: Theme.of(context).textTheme.headlineMedium,
                         textAlign: TextAlign.center),
                   ],
@@ -168,22 +173,22 @@ class _DrinksPageState extends ConsumerState<DrinksPage> {
     );
   }
 
-  Widget _featuredDrink(BuildContext context) {
-    final drinkAsync = ref.watch(randomCocktailProvider);
+  // ── Featured hero (random cocktail) ──────────────────────
+  Widget _featuredHero(BuildContext context, AsyncValue<Cocktail?> drinkAsync) {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
         child: drinkAsync.when(
-          data: (drink) => drink == null
-              ? const SizedBox.shrink()
-              : _DrinkHeroCard(cocktail: drink),
+          data: (drink) =>
+              drink == null ? const SizedBox.shrink() : _DrinkHeroCard(cocktail: drink),
           loading: () => Shimmer.fromColors(
             baseColor: Colors.grey[300]!,
             highlightColor: Colors.grey[100]!,
             child: Container(
               height: 200,
               decoration: BoxDecoration(
-                  color: Colors.grey[300], borderRadius: BorderRadius.circular(24)),
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(24)),
             ),
           ),
           error: (_, _) => const SizedBox.shrink(),
@@ -192,8 +197,8 @@ class _DrinksPageState extends ConsumerState<DrinksPage> {
     );
   }
 
-  Widget _filterRow(BuildContext context) {
-    final selectedCat = ref.watch(selectedCocktailCategoryProvider);
+  // ── Filter row / section header ───────────────────────────
+  Widget _filterRowHeader(BuildContext context, String? selectedCat) {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
@@ -217,8 +222,9 @@ class _DrinksPageState extends ConsumerState<DrinksPage> {
     );
   }
 
-  Widget _categoriesGrid(BuildContext context) {
-    final catsAsync = ref.watch(cocktailCategoriesProvider);
+  // ── Categories grid ───────────────────────────────────────
+  Widget _categoriesGrid(
+      BuildContext context, AsyncValue<List<CocktailCategory>> catsAsync) {
     return catsAsync.when(
       data: (cats) => SliverPadding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
@@ -227,8 +233,9 @@ class _DrinksPageState extends ConsumerState<DrinksPage> {
             (ctx, i) => _CategoryCard(
               name: cats[i].name,
               index: i,
-              onTap: () =>
-                  ref.read(selectedCocktailCategoryProvider.notifier).state = cats[i].name,
+              onTap: () => ref
+                  .read(selectedCocktailCategoryProvider.notifier)
+                  .state = cats[i].name,
             ),
             childCount: cats.length,
           ),
@@ -245,8 +252,9 @@ class _DrinksPageState extends ConsumerState<DrinksPage> {
     );
   }
 
-  Widget _categoryDrinks(BuildContext context) {
-    final drinksAsync = ref.watch(cocktailsByCategoryProvider);
+  // ── Category drinks grid ──────────────────────────────────
+  Widget _categoryDrinks(
+      BuildContext context, AsyncValue<List<Cocktail>> drinksAsync) {
     return drinksAsync.when(
       data: (drinks) => SliverPadding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
@@ -303,7 +311,8 @@ class _DrinkHeroCard extends StatelessWidget {
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CocktailDetailPage(id: cocktail.id, name: cocktail.name, thumb: cocktail.thumbnail),
+          builder: (_) => CocktailDetailPage(
+              id: cocktail.id, name: cocktail.name, thumb: cocktail.thumbnail),
         ),
       ),
       child: Container(
@@ -350,7 +359,9 @@ class _DrinkHeroCard extends StatelessWidget {
                       SizedBox(width: 4),
                       Text('Drink of the Day',
                           style: TextStyle(
-                              color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700)),
                     ],
                   ),
                 ),
@@ -369,7 +380,9 @@ class _DrinkHeroCard extends StatelessWidget {
                   child: Text(
                     cocktail.isAlcoholic ? '🍸 Cocktail' : '🧃 Mocktail',
                     style: const TextStyle(
-                        color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -383,7 +396,9 @@ class _DrinkHeroCard extends StatelessWidget {
                     Text(
                       cocktail.name,
                       style: const TextStyle(
-                          color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -391,11 +406,12 @@ class _DrinkHeroCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.category_outlined, color: Colors.white70, size: 13),
+                          const Icon(Icons.category_outlined,
+                              color: Colors.white70, size: 13),
                           const SizedBox(width: 4),
                           Text(cocktail.category!,
-                              style:
-                                  const TextStyle(color: Colors.white70, fontSize: 12)),
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 12)),
                         ],
                       ),
                     ],
@@ -465,8 +481,8 @@ class _CocktailCard extends StatelessWidget {
                       bottom: 8,
                       left: 8,
                       child: Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: cocktail.isAlcoholic
                               ? Colors.orange.withAlpha(220)
@@ -489,10 +505,8 @@ class _CocktailCard extends StatelessWidget {
                   children: [
                     Text(
                       cocktail.name,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyLarge
-                          ?.copyWith(fontWeight: FontWeight.w700, fontSize: 13),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w700, fontSize: 13),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -515,7 +529,9 @@ class _CocktailCard extends StatelessWidget {
           ),
         ),
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: (index * 50).ms).scale(begin: const Offset(0.9, 0.9));
+    ).animate().fadeIn(
+        duration: 400.ms,
+        delay: (index * 50).ms).scale(begin: const Offset(0.9, 0.9));
   }
 }
 
@@ -525,7 +541,8 @@ class _CategoryCard extends StatelessWidget {
   final int index;
   final VoidCallback onTap;
 
-  const _CategoryCard({required this.name, required this.index, required this.onTap});
+  const _CategoryCard(
+      {required this.name, required this.index, required this.onTap});
 
   static const _icons = [
     '🍸', '🍹', '🥃', '🍺', '🧃', '🍷', '☕', '🥤', '🍵', '🧋',
@@ -555,10 +572,8 @@ class _CategoryCard extends StatelessWidget {
             Expanded(
               child: Text(
                 name,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w600, fontSize: 12),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600, fontSize: 12),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
