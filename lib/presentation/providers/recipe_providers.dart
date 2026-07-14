@@ -7,6 +7,9 @@ import '../../data/services/spoonacular_service.dart';
 import '../../data/services/meal_db_service.dart';
 import '../../data/services/cocktail_service.dart';
 import '../../data/services/open_food_service.dart';
+import '../../data/services/advice_service.dart';
+import '../../data/services/fruityvice_service.dart';
+import '../../data/models/fruit_model.dart';
 import '../../data/repositories/favorites_repository.dart';
 
 // ── Services ──────────────────────────────────────────────
@@ -34,6 +37,18 @@ final openFoodServiceProvider = Provider<OpenFoodService>((ref) {
   return s;
 });
 
+final adviceServiceProvider = Provider<AdviceService>((ref) {
+  final s = AdviceService();
+  ref.onDispose(s.dispose);
+  return s;
+});
+
+final fruityviceServiceProvider = Provider<FruityviceService>((ref) {
+  final s = FruityviceService();
+  ref.onDispose(s.dispose);
+  return s;
+});
+
 final favoritesRepositoryProvider = Provider<FavoritesRepository>((ref) {
   return FavoritesRepository();
 });
@@ -52,12 +67,9 @@ final categoriesProvider = FutureProvider<List<MealCategory>>((ref) async {
 });
 
 // ── Category browsing ─────────────────────────────────────
-final selectedCategoryProvider = StateProvider<String?>((ref) => null);
-
-final categoryMealsProvider = FutureProvider<List<MealDbRecipe>>((ref) async {
-  final cat = ref.watch(selectedCategoryProvider);
-  if (cat == null) return [];
-  return ref.watch(mealDbServiceProvider).filterByCategory(cat);
+final categoryMealsProvider =
+    FutureProvider.family<List<MealDbRecipe>, String>((ref, category) async {
+  return ref.watch(mealDbServiceProvider).filterByCategory(category);
 });
 
 // ── Meal detail (TheMealDB) ───────────────────────────────
@@ -235,4 +247,43 @@ final foodProductsProvider = FutureProvider<List<FoodProduct>>((ref) async {
   final q = ref.watch(foodSearchQueryProvider);
   if (q.isEmpty) return [];
   return ref.watch(openFoodServiceProvider).searchProducts(q);
+});
+
+// ── Advice Slip (cooking tips — FREE) ─────────────────────
+final cookingTipProvider = FutureProvider<String>((ref) async {
+  return ref.watch(adviceServiceProvider).getCookingTip();
+});
+
+// ── Desi Halal Kitchen (TheMealDB + OpenFoodFacts halal) ──────
+final indianAreaMealsProvider = FutureProvider<List<MealDbRecipe>>((ref) async {
+  return ref.watch(mealDbServiceProvider).filterByArea('Indian');
+});
+
+final moroccanAreaMealsProvider = FutureProvider<List<MealDbRecipe>>((ref) async {
+  return ref.watch(mealDbServiceProvider).filterByArea('Moroccan');
+});
+
+final desiSearchQueryProvider = StateProvider<String>((ref) => '');
+
+final desiSearchResultsProvider = FutureProvider<List<MealDbRecipe>>((ref) async {
+  final q = ref.watch(desiSearchQueryProvider);
+  if (q.isEmpty) return [];
+  return ref.watch(mealDbServiceProvider).searchMeals(q);
+});
+
+final halalProductQueryProvider = StateProvider<String>((ref) => '');
+
+final halalProductsProvider = FutureProvider<List<FoodProduct>>((ref) async {
+  final q = ref.watch(halalProductQueryProvider);
+  if (q.isEmpty) return [];
+  return ref.watch(openFoodServiceProvider).searchHalalProducts(q);
+});
+
+// ── Fruityvice (fruit nutrition — FREE) ───────────────────
+final fruitQueryProvider = StateProvider<String>((ref) => '');
+
+final fruitInfoProvider = FutureProvider<Fruit?>((ref) async {
+  final q = ref.watch(fruitQueryProvider);
+  if (q.isEmpty) return null;
+  return ref.watch(fruityviceServiceProvider).getFruitInfo(q);
 });

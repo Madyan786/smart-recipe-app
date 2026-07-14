@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/area_flags.dart';
 import '../../data/models/meal_db_models.dart';
 import '../providers/recipe_providers.dart';
 import 'meal_detail_page.dart';
@@ -15,18 +16,19 @@ class CategoryPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // trigger load
-    ref.read(selectedCategoryProvider.notifier).state = category.name;
-    final mealsAsync = ref.watch(categoryMealsProvider);
+    // ✅ Fixed: use family provider — no provider modification during build
+    final mealsAsync = ref.watch(categoryMealsProvider(category.name));
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 180,
+            expandedHeight: 220,
             pinned: true,
+            stretch: true,
             backgroundColor: AppColors.primary,
             flexibleSpace: FlexibleSpaceBar(
+              stretchModes: const [StretchMode.zoomBackground],
               background: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -41,17 +43,37 @@ class CategoryPage extends ConsumerWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [Colors.black.withAlpha(60), Colors.black.withAlpha(160)],
+                        colors: [
+                          Colors.black.withAlpha(40),
+                          Colors.black.withAlpha(180),
+                        ],
                       ),
                     ),
                   ),
                   Positioned(
-                    bottom: 16,
+                    bottom: 20,
                     left: 20,
-                    child: Text(
-                      category.name,
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 28, fontWeight: FontWeight.w700),
+                    right: 60,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          category.name,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 30,
+                              fontWeight: FontWeight.w800),
+                        ),
+                        mealsAsync.when(
+                          data: (m) => Text(
+                            '${m.length} recipes',
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 14),
+                          ),
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, _) => const SizedBox.shrink(),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -61,28 +83,47 @@ class CategoryPage extends ConsumerWidget {
           if (category.description.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
                 child: Text(
                   category.description,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
+                  style:
+                      Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
                 ),
               ),
             ),
           SliverPadding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             sliver: mealsAsync.when(
-              data: (meals) => SliverGrid(
-                delegate: SliverChildBuilderDelegate(
-                  (context, i) => _MealTile(meal: meals[i], index: i),
-                  childCount: meals.length,
-                ),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 14,
-                  childAspectRatio: 0.85,
-                ),
-              ),
+              data: (meals) => meals.isEmpty
+                  ? SliverToBoxAdapter(
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(40),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.restaurant_outlined,
+                                  size: 60, color: AppColors.textSecondary),
+                              const SizedBox(height: 12),
+                              Text('No meals found',
+                                  style: Theme.of(context).textTheme.headlineMedium),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  : SliverGrid(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) => _MealTile(meal: meals[i], index: i),
+                        childCount: meals.length,
+                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 14,
+                        crossAxisSpacing: 14,
+                        childAspectRatio: 0.82,
+                      ),
+                    ),
               loading: () => SliverGrid(
                 delegate: SliverChildBuilderDelegate(
                   (_, _) => Shimmer.fromColors(
@@ -90,7 +131,8 @@ class CategoryPage extends ConsumerWidget {
                     highlightColor: Colors.grey[100]!,
                     child: Container(
                       decoration: BoxDecoration(
-                          color: Colors.grey[300], borderRadius: BorderRadius.circular(16)),
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(16)),
                     ),
                   ),
                   childCount: 6,
@@ -99,11 +141,35 @@ class CategoryPage extends ConsumerWidget {
                   crossAxisCount: 2,
                   mainAxisSpacing: 14,
                   crossAxisSpacing: 14,
-                  childAspectRatio: 0.85,
+                  childAspectRatio: 0.82,
                 ),
               ),
               error: (e, _) => SliverToBoxAdapter(
-                child: Center(child: Text(e.toString())),
+                child: Padding(
+                  padding: const EdgeInsets.all(40),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.wifi_off_rounded,
+                          size: 60, color: AppColors.textSecondary),
+                      const SizedBox(height: 12),
+                      Text('Could not load meals',
+                          style: Theme.of(context).textTheme.headlineMedium,
+                          textAlign: TextAlign.center),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => ref.invalidate(categoryMealsProvider(category.name)),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -121,6 +187,8 @@ class _MealTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final flag = meal.area.isNotEmpty ? flagForArea(meal.area) : null;
+
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
@@ -135,10 +203,10 @@ class _MealTile extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: Theme.of(context).cardTheme.color,
+          color: Theme.of(context).colorScheme.surface,
           boxShadow: [
             BoxShadow(
-                color: AppColors.primary.withAlpha(15),
+                color: AppColors.primary.withAlpha(12),
                 blurRadius: 16,
                 offset: const Offset(0, 6)),
           ],
@@ -148,20 +216,40 @@ class _MealTile extends StatelessWidget {
           children: [
             Expanded(
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: CachedNetworkImage(
-                  imageUrl: meal.thumbnail,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  placeholder: (_, _) => Shimmer.fromColors(
-                    baseColor: Colors.grey[300]!,
-                    highlightColor: Colors.grey[100]!,
-                    child: Container(color: Colors.grey[300]),
-                  ),
-                  errorWidget: (_, _, _) => Container(
-                    color: AppColors.primaryLight.withAlpha(40),
-                    child: const Icon(Icons.restaurant, color: AppColors.primaryLight),
-                  ),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: meal.thumbnail,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) => Shimmer.fromColors(
+                        baseColor: Colors.grey[300]!,
+                        highlightColor: Colors.grey[100]!,
+                        child: Container(color: Colors.grey[300]),
+                      ),
+                      errorWidget: (_, _, _) => Container(
+                        color: AppColors.primaryLight.withAlpha(40),
+                        child: const Icon(Icons.restaurant,
+                            color: AppColors.primaryLight),
+                      ),
+                    ),
+                    if (flag != null)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withAlpha(100),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(flag,
+                              style: const TextStyle(fontSize: 16)),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -171,10 +259,8 @@ class _MealTile extends StatelessWidget {
                 meal.name,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyLarge
-                    ?.copyWith(fontSize: 13, fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ),
           ],

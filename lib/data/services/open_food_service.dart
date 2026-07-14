@@ -26,6 +26,26 @@ class OpenFoodService {
         .toList();
   }
 
+  Future<List<FoodProduct>> searchHalalProducts(String query, {int page = 1}) async {
+    final uri = Uri.parse(
+      '$_base/cgi/search.pl?search_terms=${Uri.encodeComponent(query)}'
+      '&tagtype_0=labels&tag_contains_0=contains&tag_0=en:halal'
+      '&action=process&json=1&page=$page&page_size=20'
+      '&fields=_id,product_name,product_name_en,brands,image_front_url,image_url,'
+      'categories,nutriments,allergens_tags,ingredients_text,nutriscore_grade',
+    );
+    final res = await _client.get(uri, headers: {'User-Agent': 'SmartRecipeApp/1.0'});
+    if (res.statusCode != 200) return [];
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final products = data['products'] as List<dynamic>?;
+    if (products == null) return [];
+    return products
+        .where((p) =>
+            (p['product_name'] ?? p['product_name_en'] ?? '').toString().isNotEmpty)
+        .map((p) => FoodProduct.fromJson(p as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<FoodProduct?> getProductByBarcode(String barcode) async {
     final uri = Uri.parse(
       '$_base/api/v2/product/$barcode.json'

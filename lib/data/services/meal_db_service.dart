@@ -51,6 +51,25 @@ class MealDbService {
     }).toList();
   }
 
+  Future<List<MealDbRecipe>> filterByArea(String area) async {
+    final res = await _client.get(
+        Uri.parse('$_base/filter.php?a=${Uri.encodeComponent(area)}'));
+    _check(res);
+    final data = json.decode(res.body) as Map<String, dynamic>;
+    final meals = data['meals'] as List<dynamic>? ?? [];
+    return meals.take(20).map((m) {
+      final map = m as Map<String, dynamic>;
+      return MealDbRecipe(
+        id: map['idMeal'] as String,
+        name: map['strMeal'] as String,
+        category: '',
+        area: area,
+        instructions: '',
+        thumbnail: map['strMealThumb'] as String? ?? '',
+      );
+    }).toList();
+  }
+
   Future<MealDbRecipe?> getMealById(String id) async {
     final res = await _client.get(Uri.parse('$_base/lookup.php?i=$id'));
     _check(res);
